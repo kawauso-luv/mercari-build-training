@@ -134,8 +134,31 @@ func (s *Handlers) AddItem(w http.ResponseWriter, r *http.Request) {
 	message := fmt.Sprintf("item received: %s", item.Name)
 	slog.Info(message)
 
-	// STEP 4-2: add an implementation to store an image //<- Now //4-4（上のコード）と何が違うか聞く
+	// STEP 4-2: add an implementation to store an item //<- Now //imageはitemの間違いだったらしい
+	filePath := "../data/items.json"
+	file, err := os.OpenFile(filePath, os.O_RDWR, 0644)
+	if err != nil {
+		http.Error(w, "Failed to open file", http.StatusInternalServerError)
+		return
+	}
+	defer file.Close()
 	
+	// itemをJSONにエンコード
+	itemData, err := json.Marshal(item)
+	if err != nil {
+		http.Error(w, "Failed to marshal item to JSON", http.StatusInternalServerError)
+		return
+	}
+
+	// ファイルに書き込む
+	_, err = file.Write(itemData)
+	if err != nil {
+		http.Error(w, "Failed to write item to file", http.StatusInternalServerError)
+		return
+	}
+
+	// レスポンスを返す
+	w.Write([]byte("Item saved successfully"))
 
 
 	err = s.itemRepo.Insert(ctx, item)
