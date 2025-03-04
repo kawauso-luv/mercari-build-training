@@ -15,14 +15,14 @@ import (
 type Server struct {
 	// Port is the port number to listen on.
 	Port string
-	// ImageDirPath is the path to the directory storing images.
+	// ImageDirPath is the path to the directory storing images. //画像パス保存
 	ImageDirPath string
 }
 
-// Run is a method to start the server.
+// Run is a method to start the server. //Run→サーバーをスタート。戻り値0なら成功、1なら失敗
 // This method returns 0 if the server started successfully, and 1 otherwise.
 func (s Server) Run() int {
-	// set up logger
+	// set up logger //ログの設定
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
 	slog.SetDefault(logger)
 	// STEP 4-6: set the log level to DEBUG
@@ -80,7 +80,7 @@ func (s *Handlers) Hello(w http.ResponseWriter, r *http.Request) {
 type AddItemRequest struct {
 	Name string `form:"name"`
 	Category string `form:"category"` // STEP 4-2: add a category field //<-Done
-	Image []byte `form:"image"` // STEP 4-4: add an image field
+	Image []byte `form:"image"` // STEP 4-4: add an image field //画像はbyteに変換して保存する
 }
 
 type AddItemResponse struct {
@@ -91,7 +91,7 @@ type AddItemResponse struct {
 func parseAddItemRequest(r *http.Request) (*AddItemRequest, error) {
 	req := &AddItemRequest{
 		Name: r.FormValue("name"),
-		Category: r.FormValue("category") // STEP 4-2: add a category field // <- Done
+		Category: r.FormValue("category"), // STEP 4-2: add a category field // <- Done
 	}
 
 	// STEP 4-4: add an image field
@@ -134,7 +134,7 @@ func (s *Handlers) AddItem(w http.ResponseWriter, r *http.Request) {
 	message := fmt.Sprintf("item received: %s", item.Name)
 	slog.Info(message)
 
-	// STEP 4-2: add an implementation to store an image //<- Now
+	// STEP 4-2: add an implementation to store an image //<- Now //4-4（上のコード）と何が違うか聞く
 	
 
 
