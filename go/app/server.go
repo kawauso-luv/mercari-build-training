@@ -9,7 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"image"
+	// "image"
 )
 
 type Server struct {
@@ -43,6 +43,7 @@ func (s Server) Run() int {
 	// set up routes
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /", h.Hello)
+	mux.HandleFunc("GET /items", h.GetItem)
 	mux.HandleFunc("POST /items", h.AddItem)
 	mux.HandleFunc("GET /images/{filename}", h.GetImage)
 
@@ -69,6 +70,17 @@ type HelloResponse struct {
 
 // Hello is a handler to return a Hello, world! message for GET / .
 func (s *Handlers) Hello(w http.ResponseWriter, r *http.Request) {
+	resp := HelloResponse{Message: "Hello, world!"}
+	err := json.NewEncoder(w).Encode(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+//4-3
+// GetItem is a handler to return a itemdata for GET /items 
+func (s *Handlers) GetItem(w http.ResponseWriter, r *http.Request) {
 	resp := HelloResponse{Message: "Hello, world!"}
 	err := json.NewEncoder(w).Encode(resp)
 	if err != nil {
@@ -133,32 +145,6 @@ func (s *Handlers) AddItem(w http.ResponseWriter, r *http.Request) {
 	}
 	message := fmt.Sprintf("item received: %s", item.Name)
 	slog.Info(message)
-
-	// STEP 4-2: add an implementation to store an item //<- Now //imageはitemの間違いだったらしい
-	filePath := "../data/items.json"
-	file, err := os.OpenFile(filePath, os.O_RDWR, 0644)
-	if err != nil {
-		http.Error(w, "Failed to open file", http.StatusInternalServerError)
-		return
-	}
-	defer file.Close()
-	
-	// itemをJSONにエンコード
-	itemData, err := json.Marshal(item)
-	if err != nil {
-		http.Error(w, "Failed to marshal item to JSON", http.StatusInternalServerError)
-		return
-	}
-
-	// ファイルに書き込む
-	_, err = file.Write(itemData)
-	if err != nil {
-		http.Error(w, "Failed to write item to file", http.StatusInternalServerError)
-		return
-	}
-
-	// レスポンスを返す
-	w.Write([]byte("Item saved successfully"))
 
 
 	err = s.itemRepo.Insert(ctx, item)

@@ -3,6 +3,8 @@ package app
 import (
 	"context"
 	"errors"
+	"encoding/json"
+	"os"
 	// STEP 5-1: uncomment this line
 	// _ "github.com/mattn/go-sqlite3"
 )
@@ -36,7 +38,28 @@ func NewItemRepository() ItemRepository {
 
 // Insert inserts an item into the repository.
 func (i *itemRepository) Insert(ctx context.Context, item *Item) error {
-	// STEP 4-1: add an implementation to store an item
+	// STEP 4-2: add an implementation to store an item
+	filePath := "../go/items.json"
+	file, err := os.OpenFile(filePath, os.O_RDWR, 0644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	
+	// itemをJSONにエンコード
+	itemData, err := json.Marshal(item)
+	if err != nil {
+		return err
+	}
+
+	// ファイルに書き込む
+	_, err = file.Write(itemData)
+	if err != nil {
+		return err
+	}
+
+	// レスポンスを返す
+	// w.Write([]byte("Item saved successfully"))
 
 	return nil
 }
