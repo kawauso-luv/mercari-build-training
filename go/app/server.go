@@ -78,16 +78,7 @@ func (s *Handlers) Hello(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-//4-3
-// GetItem is a handler to return a itemdata for GET /items 
-func (s *Handlers) GetItem(w http.ResponseWriter, r *http.Request) {
-	resp := HelloResponse{Message: "Hello, world!"}
-	err := json.NewEncoder(w).Encode(resp)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-}
+
 
 type AddItemRequest struct {
 	Name string `form:"name"`
