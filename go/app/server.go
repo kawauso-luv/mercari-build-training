@@ -43,7 +43,6 @@ func (s Server) Run() int {
 	// set up routes
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /", h.Hello)
-	mux.HandleFunc("GET /items", h.GetItem)
 	mux.HandleFunc("POST /items", h.AddItem)
 	mux.HandleFunc("GET /images/{filename}", h.GetImage)
 
@@ -78,12 +77,10 @@ func (s *Handlers) Hello(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-
-
 type AddItemRequest struct {
-	Name string `form:"name"`
+	Name     string `form:"name"`
 	Category string `form:"category"` // STEP 4-2: add a category field //<-Done
-	Image []byte `form:"image"` // STEP 4-4: add an image field //画像はbyteに変換して保存する
+	Image    []byte `form:"image"`    // STEP 4-4: add an image field //画像はbyteに変換して保存する
 }
 
 type AddItemResponse struct {
@@ -93,7 +90,7 @@ type AddItemResponse struct {
 // parseAddItemRequest parses and validates the request to add an item.
 func parseAddItemRequest(r *http.Request) (*AddItemRequest, error) {
 	req := &AddItemRequest{
-		Name: r.FormValue("name"),
+		Name:     r.FormValue("name"),
 		Category: r.FormValue("category"), // STEP 4-2: add a category field // <- Done
 	}
 
@@ -106,7 +103,7 @@ func parseAddItemRequest(r *http.Request) (*AddItemRequest, error) {
 
 	if req.Category == "" { // STEP 4-2: validate the category field //<- Done
 		return nil, errors.New("category is required")
-	} 
+	}
 	// STEP 4-4: validate the image field
 	return req, nil
 }
@@ -130,13 +127,12 @@ func (s *Handlers) AddItem(w http.ResponseWriter, r *http.Request) {
 	// }
 
 	item := &Item{
-		Name: req.Name,
+		Name:     req.Name,
 		Category: req.Category, // STEP 4-2: add a category field //<-Done
 		// STEP 4-4: add an image field
 	}
 	message := fmt.Sprintf("item received: %s", item.Name)
 	slog.Info(message)
-
 
 	err = s.itemRepo.Insert(ctx, item)
 	if err != nil {

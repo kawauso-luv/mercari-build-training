@@ -2,8 +2,8 @@ package app
 
 import (
 	"context"
-	"errors"
 	"encoding/json"
+	"errors"
 	"os"
 	// STEP 5-1: uncomment this line
 	// _ "github.com/mattn/go-sqlite3"
@@ -12,8 +12,8 @@ import (
 var errImageNotFound = errors.New("image not found")
 
 type Item struct {
-	ID   int    `db:"id" json:"-"`
-	Name string `db:"name" json:"name"`
+	ID       int    `db:"id" json:"-"`
+	Name     string `db:"name" json:"name"`
 	Category string `db:"category" json:"category"`
 }
 
@@ -45,7 +45,7 @@ func (i *itemRepository) Insert(ctx context.Context, item *Item) error {
 		return err
 	}
 	defer file.Close()
-	
+
 	// itemをJSONにエンコード
 	itemData, err := json.Marshal(item)
 	if err != nil {
