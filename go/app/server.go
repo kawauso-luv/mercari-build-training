@@ -43,6 +43,7 @@ func (s Server) Run() int {
 	// set up routes
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /", h.Hello)
+	mux.HandleFunc("GET /items", h.GetItem)
 	mux.HandleFunc("POST /items", h.AddItem)
 	mux.HandleFunc("GET /images/{filename}", h.GetImage)
 
@@ -77,10 +78,37 @@ func (s *Handlers) Hello(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type GetItemsResponse struct {
+	Items []*Item `json:"items"`
+}
+
+//4-3
+// GetItem is a handler to return a itemdata for GET /items 
+func (s *Handlers) GetItem(w http.ResponseWriter, r *http.Request) {
+	//http.Request に関連付けられたコンテキストオブジェクト(処理落ち、タイムアウトなど)を取得
+	ctx := r.Context()
+	
+	//itemsはリポジトリに保存されているので、それをリスト化して取得する
+	items, err := s.itemRepo.List(ctx)
+	if err != nil {
+		slog.Error("failed to get items: ", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	resp := GetItemsResponse{Items: items}
+	err = json.NewEncoder(w).Encode(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+
 type AddItemRequest struct {
-	Name     string `form:"name"`
+	Name string `form:"name"`
 	Category string `form:"category"` // STEP 4-2: add a category field //<-Done
-	Image    []byte `form:"image"`    // STEP 4-4: add an image field //画像はbyteに変換して保存する
+	Image []byte `form:"image"` // STEP 4-4: add an image field //画像はbyteに変換して保存する
 }
 
 type AddItemResponse struct {
@@ -90,7 +118,7 @@ type AddItemResponse struct {
 // parseAddItemRequest parses and validates the request to add an item.
 func parseAddItemRequest(r *http.Request) (*AddItemRequest, error) {
 	req := &AddItemRequest{
-		Name:     r.FormValue("name"),
+		Name: r.FormValue("name"),
 		Category: r.FormValue("category"), // STEP 4-2: add a category field // <- Done
 	}
 
@@ -103,7 +131,7 @@ func parseAddItemRequest(r *http.Request) (*AddItemRequest, error) {
 
 	if req.Category == "" { // STEP 4-2: validate the category field //<- Done
 		return nil, errors.New("category is required")
-	}
+	} 
 	// STEP 4-4: validate the image field
 	return req, nil
 }
@@ -127,12 +155,13 @@ func (s *Handlers) AddItem(w http.ResponseWriter, r *http.Request) {
 	// }
 
 	item := &Item{
-		Name:     req.Name,
+		Name: req.Name,
 		Category: req.Category, // STEP 4-2: add a category field //<-Done
 		// STEP 4-4: add an image field
 	}
 	message := fmt.Sprintf("item received: %s", item.Name)
 	slog.Info(message)
+
 
 	err = s.itemRepo.Insert(ctx, item)
 	if err != nil {
