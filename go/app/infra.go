@@ -39,8 +39,8 @@ func NewItemRepository() ItemRepository {
 // Insert inserts an item into the repository.
 func (i *itemRepository) Insert(ctx context.Context, item *Item) error {
 	// STEP 4-2: add an implementation to store an item
-	filePath := "../go/items.json"
-	file, err := os.OpenFile(filePath, os.O_RDWR, 0644)
+	//i *itemRepositoryとなっているのでfilepathはそのままi.fileNameで引っ張ってこれる
+	file, err := os.OpenFile(i.fileName, os.O_RDWR, 0644)
 	if err != nil {
 		return err
 	}
