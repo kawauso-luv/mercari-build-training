@@ -93,6 +93,9 @@ func (i *itemRepository) List(ctx context.Context) ([]*Item, error) {
 // This package doesn't have a related interface for simplicity.
 func StoreImage(fileName string, image []byte) error {
 	// STEP 4-4: add an implementation to store an image
+	if err := os.WriteFile(fileName, image, 0644); err != nil {
+		return fmt.Errorf("failed to write image file: %w", err)
+	}
 
 	return nil
 }

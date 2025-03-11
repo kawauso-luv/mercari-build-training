@@ -123,6 +123,10 @@ func parseAddItemRequest(r *http.Request) (*AddItemRequest, error) {
 	}
 
 	// STEP 4-4: add an image field
+	downloadedFile, _, err := r.FormFile("image")
+	if err != nil {
+		return nil, errors.New("image is required")
+	}
 
 	// validate the request
 	if req.Name == "" {
