@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"os"
 	"fmt"
+	"os"
 	// STEP 5-1: uncomment this line
 	// _ "github.com/mattn/go-sqlite3"
 )
@@ -13,17 +13,18 @@ import (
 var errImageNotFound = errors.New("image not found")
 
 type Item struct {
-	ID       int    `db:"id" json:"-"`
-	Name     string `db:"name" json:"name"`
-	Category string `db:"category" json:"category"`
+	ID        int    `db:"id" json:"-"`
+	Name      string `db:"name" json:"name"`
+	Category  string `db:"category" json:"category"`
 	ImageName string `db:"image" json:"image"`
 }
 
 // Please run `go generate ./...` to generate the mock implementation
 // ItemRepository is an interface to manage items.
 //
+// interfaceは、関数の引数の定義
+//
 //go:generate go run go.uber.org/mock/mockgen -source=$GOFILE -package=${GOPACKAGE} -destination=./mock_$GOFILE
-//interfaceは、関数の引数の定義
 type ItemRepository interface {
 	Insert(ctx context.Context, item *Item) error
 	List(ctx context.Context) ([]*Item, error)
@@ -50,31 +51,30 @@ func (i *itemRepository) Insert(ctx context.Context, item *Item) error {
 	defer file.Close()
 
 	// 既存データを読み込む
-    var data struct {
-        Items []Item `json:"items"`
-    }
-    decoder := json.NewDecoder(file)
-    if err := decoder.Decode(&data); err != nil && err.Error() != "EOF" {
-        return err
-    }
+	var data struct {
+		Items []Item `json:"items"`
+	}
+	decoder := json.NewDecoder(file)
+	if err := decoder.Decode(&data); err != nil && err.Error() != "EOF" {
+		return err
+	}
 
-    // 新しい item を追加
-    data.Items = append(data.Items, *item)
+	// 新しい item を追加
+	data.Items = append(data.Items, *item)
 
-    // ファイルをクリアして新しい JSON データを書き込む
-    file.Seek(0, 0) // ファイルの先頭に戻る
-    file.Truncate(0) // ファイルを空にする
+	// ファイルをクリアして新しい JSON データを書き込む
+	file.Seek(0, 0)  // ファイルの先頭に戻る
+	file.Truncate(0) // ファイルを空にする
 
-    encoder := json.NewEncoder(file)
-    if err := encoder.Encode(data); err != nil {
-        return err
-    }
+	encoder := json.NewEncoder(file)
+	if err := encoder.Encode(data); err != nil {
+		return err
+	}
 
-    return nil
+	return nil
 }
 
-
-// List get all items 
+// List get all items
 func (i *itemRepository) List(ctx context.Context) ([]*Item, error) {
 	//dataに、jsonに保存されている中のitem
 	var data struct {
@@ -97,7 +97,6 @@ func (i *itemRepository) List(ctx context.Context) ([]*Item, error) {
 	return data.Items, nil
 
 }
-
 
 // StoreImage stores an image and returns an error if any.
 // This package doesn't have a related interface for simplicity.

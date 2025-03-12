@@ -1,17 +1,17 @@
 package app
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-	"io"
-	"crypto/sha256"
-	"encoding/hex"
 )
 
 type Server struct {
@@ -84,12 +84,12 @@ type GetItemsResponse struct {
 	Items []*Item `json:"items"`
 }
 
-//4-3
-// GetItem is a handler to return a itemdata for GET /items 
+// 4-3
+// GetItem is a handler to return a itemdata for GET /items
 func (s *Handlers) GetItem(w http.ResponseWriter, r *http.Request) {
 	//http.Request に関連付けられたコンテキストオブジェクト(処理落ち、タイムアウトなど)を取得
 	ctx := r.Context()
-	
+
 	//itemsはリポジトリに保存されているので、それをリスト化して取得する
 	items, err := s.itemRepo.List(ctx)
 	if err != nil {
@@ -106,11 +106,10 @@ func (s *Handlers) GetItem(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-
 type AddItemRequest struct {
-	Name string `form:"name"`
+	Name     string `form:"name"`
 	Category string `form:"category"` // STEP 4-2: add a category field //<-Done
-	Image []byte `form:"image"` // STEP 4-4: add an image field //画像はbyteに変換して保存する
+	Image    []byte `form:"image"`    // STEP 4-4: add an image field //画像はbyteに変換して保存する
 }
 
 type AddItemResponse struct {
@@ -120,7 +119,7 @@ type AddItemResponse struct {
 // parseAddItemRequest parses and validates the request to add an item.
 func parseAddItemRequest(r *http.Request) (*AddItemRequest, error) {
 	req := &AddItemRequest{
-		Name: r.FormValue("name"),
+		Name:     r.FormValue("name"),
 		Category: r.FormValue("category"), // STEP 4-2: add a category field // <- Done
 	}
 
@@ -138,7 +137,6 @@ func parseAddItemRequest(r *http.Request) (*AddItemRequest, error) {
 
 	req.Image = imageData
 
-	
 	// validate the request
 	if req.Name == "" {
 		return nil, errors.New("name is required")
@@ -146,8 +144,8 @@ func parseAddItemRequest(r *http.Request) (*AddItemRequest, error) {
 
 	if req.Category == "" { // STEP 4-2: validate the category field //<- Done
 		return nil, errors.New("category is required")
-	} 
-	
+	}
+
 	if len(req.Image) == 0 { // STEP 4-4: validate the image field //<-DOne
 		return nil, errors.New("Uploaded image is empty")
 	}
@@ -174,14 +172,13 @@ func (s *Handlers) AddItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	item := &Item{
-		Name: req.Name,
+		Name:     req.Name,
 		Category: req.Category, // STEP 4-2: add a category field //<-Done
 		// STEP 4-4: add an image field
 		ImageName: fileName,
 	}
 	message := fmt.Sprintf("item received: %s", item.Name)
 	slog.Info(message)
-
 
 	err = s.itemRepo.Insert(ctx, item)
 	if err != nil {
