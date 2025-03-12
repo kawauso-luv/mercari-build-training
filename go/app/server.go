@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -46,6 +47,7 @@ func (s Server) Run() int {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /", h.Hello)
 	mux.HandleFunc("GET /items", h.GetItem)
+	mux.HandleFunc("GET /items/{id}", h.GetUnItem)
 	mux.HandleFunc("POST /items", h.AddItem)
 	mux.HandleFunc("GET /images/{filename}", h.GetImage)
 
@@ -100,6 +102,44 @@ func (s *Handlers) GetItem(w http.ResponseWriter, r *http.Request) {
 
 	resp := GetItemsResponse{Items: items}
 	err = json.NewEncoder(w).Encode(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+// GetUnItem is a handler to return an "one" itemdata that have requested item_id for GET /items/{id}
+func (s *Handlers) GetUnItem(w http.ResponseWriter, r *http.Request) {
+	//http.Request に関連付けられたコンテキストオブジェクト(処理落ち、タイムアウトなど)を取得
+	ctx := r.Context()
+
+	//URL内に含まれるidを取得
+	pid := r.PathValue("id") //リクエストのURL内に含まれているデータを見るときはPathValueを使う
+	if pid == "" {
+		http.Error(w, "id is required", http.StatusBadRequest)
+		return
+	}
+
+	//取得したidをintに変換
+	id, err := strconv.Atoi(pid) //文字列を整数に変換する関数（strconv）
+	if err != nil {
+		http.Error(w, "id must be an int", http.StatusBadRequest)
+		return
+	}
+
+	//idからデータを取得する
+	item, err := s.itemRepo.Select(ctx, id)
+	if err != nil {
+		if errors.Is(err, errItemNotFound) {
+			http.Error(w, "item not found", http.StatusNotFound)
+			return
+		}
+		slog.Error("failed to get item: ", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	err = json.NewEncoder(w).Encode(item)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

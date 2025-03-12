@@ -11,6 +11,7 @@ import (
 )
 
 var errImageNotFound = errors.New("image not found")
+var errItemNotFound = errors.New("item not found")
 
 type Item struct {
 	ID        int    `db:"id" json:"-"`
@@ -28,6 +29,7 @@ type Item struct {
 type ItemRepository interface {
 	Insert(ctx context.Context, item *Item) error
 	List(ctx context.Context) ([]*Item, error)
+	Select(ctx context.Context, id int) (*Item, error)
 }
 
 // itemRepository is an implementation of ItemRepository
@@ -95,6 +97,28 @@ func (i *itemRepository) List(ctx context.Context) ([]*Item, error) {
 	}
 
 	return data.Items, nil
+
+}
+
+// Select select item from id
+func (i *itemRepository) Select(ctx context.Context, id int) (*Item, error) {
+	//場合分けしてあげる
+	//idが0以下はおかしいのでエラー
+	if id <= 0 {
+		return nil, errItemNotFound
+	}
+
+	items, err := i.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	//idがitem全体数より多いのはおかしいのでエラー
+	if len(items) < id {
+		return nil, errItemNotFound
+	}
+
+	return items[id-1], nil
 
 }
 
