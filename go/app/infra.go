@@ -16,6 +16,7 @@ type Item struct {
 	ID       int    `db:"id" json:"-"`
 	Name     string `db:"name" json:"name"`
 	Category string `db:"category" json:"category"`
+	ImageName string `db:"image" json:"image"`
 }
 
 // Please run `go generate ./...` to generate the mock implementation
@@ -48,19 +49,28 @@ func (i *itemRepository) Insert(ctx context.Context, item *Item) error {
 	}
 	defer file.Close()
 
-	// itemをJSONにエンコード
-	itemData, err := json.Marshal(item)
-	if err != nil {
-		return err
-	}
+	// 既存データを読み込む
+    var data struct {
+        Items []Item `json:"items"`
+    }
+    decoder := json.NewDecoder(file)
+    if err := decoder.Decode(&data); err != nil && err.Error() != "EOF" {
+        return err
+    }
 
-	// ファイルに書き込む
-	_, err = file.Write(itemData)
-	if err != nil {
-		return err
-	}
+    // 新しい item を追加
+    data.Items = append(data.Items, *item)
 
-	return nil
+    // ファイルをクリアして新しい JSON データを書き込む
+    file.Seek(0, 0) // ファイルの先頭に戻る
+    file.Truncate(0) // ファイルを空にする
+
+    encoder := json.NewEncoder(file)
+    if err := encoder.Encode(data); err != nil {
+        return err
+    }
+
+    return nil
 }
 
 

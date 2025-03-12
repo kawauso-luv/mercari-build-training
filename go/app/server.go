@@ -9,7 +9,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	// "image"
+	"io"
+	"crypto/sha256"
+	"encoding/hex"
 )
 
 type Server struct {
@@ -123,11 +125,20 @@ func parseAddItemRequest(r *http.Request) (*AddItemRequest, error) {
 	}
 
 	// STEP 4-4: add an image field
-	downloadedFile, _, err := r.FormFile("image")
+	uploadedFile, _, err := r.FormFile("image")
 	if err != nil {
 		return nil, errors.New("image is required")
 	}
+	defer uploadedFile.Close()
 
+	imageData, err := io.ReadAll(uploadedFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read image file: %w", err)
+	}
+
+	req.Image = imageData
+
+	
 	// validate the request
 	if req.Name == "" {
 		return nil, errors.New("name is required")
@@ -136,7 +147,11 @@ func parseAddItemRequest(r *http.Request) (*AddItemRequest, error) {
 	if req.Category == "" { // STEP 4-2: validate the category field //<- Done
 		return nil, errors.New("category is required")
 	} 
-	// STEP 4-4: validate the image field
+	
+	if len(req.Image) == 0 { // STEP 4-4: validate the image field //<-DOne
+		return nil, errors.New("Uploaded image is empty")
+	}
+
 	return req, nil
 }
 
@@ -150,18 +165,19 @@ func (s *Handlers) AddItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// STEP 4-4: uncomment on adding an implementation to store an image
-	// fileName, err := s.storeImage(req.Image)
-	// if err != nil {
-	// 	slog.Error("failed to store image: ", "error", err)
-	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
-	// 	return
-	// }
+	// STEP 4-4: uncomment on adding an implementation to store an image //ファイル名をハッシュ化
+	fileName, err := s.storeImage(req.Image)
+	if err != nil {
+		slog.Error("failed to store image: ", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	item := &Item{
 		Name: req.Name,
 		Category: req.Category, // STEP 4-2: add a category field //<-Done
 		// STEP 4-4: add an image field
+		ImageName: fileName,
 	}
 	message := fmt.Sprintf("item received: %s", item.Name)
 	slog.Info(message)
@@ -194,7 +210,28 @@ func (s *Handlers) storeImage(image []byte) (filePath string, err error) {
 	// - store image
 	// - return the image file path
 
-	return
+	//画像をハッシュの文字列にする
+	hash := sha256.Sum256(image)
+	hashStr := hex.EncodeToString(hash[:])
+
+	//ハッシュ化したものからファイルパスをつくる
+	fileName := fmt.Sprintf("%s.jpg", hashStr)
+	filePath = filepath.Join(s.imgDirPath, fileName)
+
+	//jsonに保存、2重に保存しないように
+	if _, err := os.Stat(filePath); err == nil {
+		return filePath, nil
+	} else if !os.IsNotExist(err) {
+		return "", fmt.Errorf("error checking image existance: %w", err)
+	}
+
+	//画像を保存
+	if err := StoreImage(filePath, image); err != nil {
+		return "", fmt.Errorf("failed to store image: %w", err)
+	}
+
+	//ファイル名を返す
+	return fileName, nil
 }
 
 type GetImageRequest struct {
