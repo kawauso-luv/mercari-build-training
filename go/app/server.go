@@ -220,10 +220,7 @@ func (s *Handlers) AddItem(w http.ResponseWriter, r *http.Request) {
 	message := fmt.Sprintf("item received: %s", item.Name)
 	slog.Info(message)
 
-<<<<<<< HEAD
-=======
 	// STEP 4-2: add an implementation to store an item
->>>>>>> 682369f8de6a223c1567e5035b213b6c6f179fcf
 	err = s.itemRepo.Insert(ctx, item)
 	if err != nil {
 		slog.Error("failed to store item: ", "error", err)
