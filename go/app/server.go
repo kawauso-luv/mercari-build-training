@@ -47,7 +47,7 @@ func (s Server) Run() int {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /", h.Hello)
 	mux.HandleFunc("GET /items", h.GetItem)
-	mux.HandleFunc("GET /items/{id}", h.GetUnItem)
+	mux.HandleFunc("GET /items/{id}", h.GetAnItem)
 	mux.HandleFunc("POST /items", h.AddItem)
 	mux.HandleFunc("GET /images/{filename}", h.GetImage)
 
@@ -108,8 +108,8 @@ func (s *Handlers) GetItem(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// GetUnItem is a handler to return an "one" itemdata that have requested item_id for GET /items/{id}
-func (s *Handlers) GetUnItem(w http.ResponseWriter, r *http.Request) {
+// GetAnItem is a handler to return an "one" itemdata that have requested item_id for GET /items/{id}
+func (s *Handlers) GetAnItem(w http.ResponseWriter, r *http.Request) {
 	//http.Request に関連付けられたコンテキストオブジェクト(処理落ち、タイムアウトなど)を取得
 	ctx := r.Context()
 
