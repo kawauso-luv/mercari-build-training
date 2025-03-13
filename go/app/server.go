@@ -59,6 +59,7 @@ func (s Server) Run() int {
 	mux.HandleFunc("GET /items/{id}", h.GetUnItem)
 	mux.HandleFunc("POST /items", h.AddItem)
 	mux.HandleFunc("GET /images/{filename}", h.GetImage)
+	mux.HandleFunc("GET /search", h.SearchItems)
 
 	// start the server
 	slog.Info("http server started on", "port", s.Port)
@@ -152,6 +153,33 @@ func (s *Handlers) GetUnItem(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+}
+
+//5-2
+// SearchItems is a handler to search items by keyword (GET /search?keyword=...).
+func (s *Handlers) SearchItems(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// クエリパラメータから `keyword` を取得
+	keyword := r.URL.Query().Get("keyword")
+	if keyword == "" {
+		http.Error(w, "keyword is required", http.StatusBadRequest)
+		return
+	}
+
+	// 商品を検索
+	items, err := s.itemRepo.Search(ctx, keyword)
+	if err != nil {
+		slog.Error("failed to search items: ", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// JSON でレスポンスを返す
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(items); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
