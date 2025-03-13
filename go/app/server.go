@@ -1,6 +1,7 @@
 package app
 
 import (
+	"database/sql"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -38,9 +39,16 @@ func (s Server) Run() int {
 	}
 
 	// STEP 5-1: set up the database connection
+	db, er := sql.Open("sqlite3", "db/mercari.sqlite3")
+	if er != nil {
+		// エラー時には適切な int を返し、エラーメッセージをログに出力する
+		fmt.Println(fmt.Errorf("failed to open database: %v", er)) // エラーメッセージはログに出力
+		return 1  // エラーコードとして 1 を返す
+	}
+    defer db.Close()
 
 	// set up handlers
-	itemRepo := NewItemRepository()
+	itemRepo := NewItemRepository(db)
 	h := &Handlers{imgDirPath: s.ImageDirPath, itemRepo: itemRepo}
 
 	// set up routes
