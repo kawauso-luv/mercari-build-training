@@ -1,9 +1,9 @@
-//test
+// test
 package app
 
 import (
-	"database/sql"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -44,9 +44,9 @@ func (s Server) Run() int {
 	if er != nil {
 		// エラー時には適切な int を返し、エラーメッセージをログに出力する
 		fmt.Println(fmt.Errorf("failed to open database: %v", er)) // エラーメッセージはログに出力
-		return 1  // エラーコードとして 1 を返す
+		return 1                                                   // エラーコードとして 1 を返す
 	}
-    defer db.Close()
+	defer db.Close()
 
 	// set up handlers
 	itemRepo := NewItemRepository(db)
@@ -156,7 +156,7 @@ func (s *Handlers) GetUnItem(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-//5-2
+// 5-2
 // SearchItems is a handler to search items by keyword (GET /search?keyword=...).
 func (s *Handlers) SearchItems(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()

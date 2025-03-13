@@ -1,9 +1,9 @@
-//test
+// test
 package app
 
 import (
-	"database/sql"
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"os"
@@ -31,7 +31,7 @@ type ItemRepository interface {
 	Insert(ctx context.Context, item *Item) error
 	List(ctx context.Context) ([]*Item, error)
 	Select(ctx context.Context, id int) (*Item, error)
-	Search(ctx context.Context, keyword string)([]*Item, error)
+	Search(ctx context.Context, keyword string) ([]*Item, error)
 }
 
 // itemRepository is an implementation of ItemRepository
@@ -71,12 +71,11 @@ func (i *itemRepository) Insert(ctx context.Context, item *Item) error {
 
 	query := `INSERT INTO items (name, category_id, image_name) 
               VALUES (?, ?, ?)`
-	
-	
+
 	_, err = i.db.ExecContext(ctx, query, item.Name, categoryID, item.ImageName)
-    if err != nil {
-        return fmt.Errorf("failed to insert item: %v", err)
-    }
+	if err != nil {
+		return fmt.Errorf("failed to insert item: %v", err)
+	}
 
 	return nil
 }
@@ -84,31 +83,31 @@ func (i *itemRepository) Insert(ctx context.Context, item *Item) error {
 // List get all items from db
 func (i *itemRepository) List(ctx context.Context) ([]*Item, error) {
 	// SQL クエリで items テーブルのデータを取得
-    rows, err := i.db.QueryContext(ctx,
-		 "SELECT items.id, items.name, categories.name AS category_name, items.image_name FROM items JOIN categories ON items.category_id = categories.id")
-    if err != nil {
-        return nil, fmt.Errorf("failed to query items: %v", err)
-    }
-    defer rows.Close()
+	rows, err := i.db.QueryContext(ctx,
+		"SELECT items.id, items.name, categories.name AS category_name, items.image_name FROM items JOIN categories ON items.category_id = categories.id")
+	if err != nil {
+		return nil, fmt.Errorf("failed to query items: %v", err)
+	}
+	defer rows.Close()
 
-    // 結果を格納するスライス
-    var items []*Item
+	// 結果を格納するスライス
+	var items []*Item
 
-    // 各行のデータを Item 構造体にマッピング
-    for rows.Next() {
-        var item Item
-        if err := rows.Scan(&item.ID, &item.Name, &item.Category, &item.ImageName); err != nil {
-            return nil, fmt.Errorf("failed to scan row: %v", err)
-        }
-        items = append(items, &item)
-    }
+	// 各行のデータを Item 構造体にマッピング
+	for rows.Next() {
+		var item Item
+		if err := rows.Scan(&item.ID, &item.Name, &item.Category, &item.ImageName); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %v", err)
+		}
+		items = append(items, &item)
+	}
 
-    // 結果を返す
-    if err := rows.Err(); err != nil {
-        return nil, fmt.Errorf("rows iteration error: %v", err)
-    }
+	// 結果を返す
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %v", err)
+	}
 
-    return items, nil
+	return items, nil
 
 }
 
@@ -135,9 +134,9 @@ func (i *itemRepository) Select(ctx context.Context, id int) (*Item, error) {
 
 }
 
-// Search 
+// Search
 func (i *itemRepository) Search(ctx context.Context, keyword string) ([]*Item, error) {
-	
+
 	query := `SELECT items.id, items.name, categories.name AS category_name, items.image_name 
           FROM items
           JOIN categories ON items.category_id = categories.id
