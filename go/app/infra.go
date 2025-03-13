@@ -1,13 +1,14 @@
+// test
 package app
 
 import (
 	"context"
-	"encoding/json"
+	"database/sql"
 	"errors"
 	"fmt"
 	"os"
 	// STEP 5-1: uncomment this line
-	// _ "github.com/mattn/go-sqlite3"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var errImageNotFound = errors.New("image not found")
@@ -16,8 +17,8 @@ var errItemNotFound = errors.New("item not found")
 type Item struct {
 	ID        int    `db:"id" json:"-"`
 	Name      string `db:"name" json:"name"`
-	Category  string `db:"category" json:"category"`
-	ImageName string `db:"image" json:"image"`
+	Category  string `db:"category_name" json:"category"`
+	ImageName string `db:"image_name" json:"image"`
 }
 
 // Please run `go generate ./...` to generate the mock implementation
@@ -30,73 +31,83 @@ type ItemRepository interface {
 	Insert(ctx context.Context, item *Item) error
 	List(ctx context.Context) ([]*Item, error)
 	Select(ctx context.Context, id int) (*Item, error)
+	Search(ctx context.Context, keyword string) ([]*Item, error)
 }
 
 // itemRepository is an implementation of ItemRepository
 type itemRepository struct {
 	// fileName is the path to the JSON file storing items.
-	fileName string
+	db *sql.DB // SQLite3 のデータベース接続
 }
 
 // NewItemRepository creates a new itemRepository.
-func NewItemRepository() ItemRepository {
-	return &itemRepository{fileName: "items.json"}
+func NewItemRepository(db *sql.DB) ItemRepository {
+	return &itemRepository{db: db}
 }
 
 // Insert inserts an item into the repository.
 func (i *itemRepository) Insert(ctx context.Context, item *Item) error {
 	// STEP 4-2: add an implementation to store an item
-	file, err := os.OpenFile(i.fileName, os.O_RDWR|os.O_CREATE, 0644)
+	// STEP 5-1: sqlite3に保存するように変更
+	// STEP 5-3: Categoryを別テーブルに保存
+	var categoryID int
+
+	err := i.db.QueryRowContext(ctx, "SELECT id FROM categories WHERE name = ?", item.Category).Scan(&categoryID) //.Scanで挿入してる
 	if err != nil {
-		return err
+		if err == sql.ErrNoRows { // カテゴリーが存在しない場合のみ挿入
+			res, insertErr := i.db.ExecContext(ctx, "INSERT INTO categories (name) VALUES (?)", item.Category)
+			if insertErr != nil {
+				return fmt.Errorf("failed to insert category: %v", insertErr)
+			}
+			id, lastErr := res.LastInsertId()
+			if lastErr != nil {
+				return fmt.Errorf("failed to get last insert ID: %v", lastErr)
+			}
+			categoryID = int(id) // 新しく挿入した ID を categoryID にセット
+		} else {
+			return fmt.Errorf("failed to query category: %v", err) // DB 接続エラーなどはそのまま返す
+		}
 	}
-	defer file.Close()
 
-	// 既存データを読み込む
-	var data struct {
-		Items []Item `json:"items"`
-	}
-	decoder := json.NewDecoder(file)
-	if err := decoder.Decode(&data); err != nil && err.Error() != "EOF" {
-		return err
-	}
+	query := `INSERT INTO items (name, category_id, image_name) 
+              VALUES (?, ?, ?)`
 
-	// 新しい item を追加
-	data.Items = append(data.Items, *item)
-
-	// ファイルをクリアして新しい JSON データを書き込む
-	file.Seek(0, 0)  // ファイルの先頭に戻る
-	file.Truncate(0) // ファイルを空にする
-
-	encoder := json.NewEncoder(file)
-	if err := encoder.Encode(data); err != nil {
-		return err
+	_, err = i.db.ExecContext(ctx, query, item.Name, categoryID, item.ImageName)
+	if err != nil {
+		return fmt.Errorf("failed to insert item: %v", err)
 	}
 
 	return nil
 }
 
-// List get all items
+// List get all items from db
 func (i *itemRepository) List(ctx context.Context) ([]*Item, error) {
-	//dataに、jsonに保存されている中のitem
-	var data struct {
-		Items []*Item `json:"items"`
-	}
-
-	dataBytes, err := os.ReadFile(i.fileName)
+	// SQL クエリで items テーブルのデータを取得
+	rows, err := i.db.QueryContext(ctx,
+		"SELECT items.id, items.name, categories.name AS category_name, items.image_name FROM items JOIN categories ON items.category_id = categories.id")
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
+		return nil, fmt.Errorf("failed to query items: %v", err)
+	}
+	defer rows.Close()
+
+	// 結果を格納するスライス
+	var items []*Item
+
+	// 各行のデータを Item 構造体にマッピング
+	for rows.Next() {
+		var item Item
+		if err := rows.Scan(&item.ID, &item.Name, &item.Category, &item.ImageName); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %v", err)
 		}
-		return nil, fmt.Errorf("failed to read file: %w", err)
+		items = append(items, &item)
 	}
 
-	//json.Unmarshal->JSON のバイト列 (dataBytes) を Go の構造体 (data) に変換する関数
-	if err := json.Unmarshal(dataBytes, &data); err != nil {
-		return nil, fmt.Errorf("failed to read file: %w", err)
+	// 結果を返す
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %v", err)
 	}
 
-	return data.Items, nil
+	return items, nil
 
 }
 
@@ -108,17 +119,52 @@ func (i *itemRepository) Select(ctx context.Context, id int) (*Item, error) {
 		return nil, errItemNotFound
 	}
 
-	items, err := i.List(ctx)
+	query := `SELECT items.id, items.name, categories.name AS category_id, items.image_name FROM items WHERE id = ?`
+	row := i.db.QueryRowContext(ctx, query, id)
+
+	var item Item
+	if err := row.Scan(&item.ID, &item.Name, &item.Category, &item.ImageName); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errItemNotFound
+		}
+		return nil, fmt.Errorf("failed to select item: %v", err)
+	}
+
+	return &item, nil
+
+}
+
+// Search
+func (i *itemRepository) Search(ctx context.Context, keyword string) ([]*Item, error) {
+
+	query := `SELECT items.id, items.name, categories.name AS category_name, items.image_name 
+          FROM items
+          JOIN categories ON items.category_id = categories.id
+          WHERE items.name LIKE ? OR categories.name LIKE ?`
+
+	// 部分一致検索
+	searchTerm := "%" + keyword + "%"
+
+	rows, err := i.db.QueryContext(ctx, query, searchTerm, searchTerm)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to search items: %v", err)
+	}
+	defer rows.Close()
+
+	var items []*Item
+	for rows.Next() {
+		var item Item
+		if err := rows.Scan(&item.ID, &item.Name, &item.Category, &item.ImageName); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %v", err)
+		}
+		items = append(items, &item)
 	}
 
-	//idがitem全体数より多いのはおかしいのでエラー
-	if len(items) < id {
-		return nil, errItemNotFound
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %v", err)
 	}
 
-	return items[id-1], nil
+	return items, nil
 
 }
 

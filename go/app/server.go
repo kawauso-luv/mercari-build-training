@@ -1,7 +1,9 @@
+// test
 package app
 
 import (
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -38,9 +40,16 @@ func (s Server) Run() int {
 	}
 
 	// STEP 5-1: set up the database connection
+	db, er := sql.Open("sqlite3", "db/mercari.sqlite3")
+	if er != nil {
+		// エラー時には適切な int を返し、エラーメッセージをログに出力する
+		fmt.Println(fmt.Errorf("failed to open database: %v", er)) // エラーメッセージはログに出力
+		return 1                                                   // エラーコードとして 1 を返す
+	}
+	defer db.Close()
 
 	// set up handlers
-	itemRepo := NewItemRepository()
+	itemRepo := NewItemRepository(db)
 	h := &Handlers{imgDirPath: s.ImageDirPath, itemRepo: itemRepo}
 
 	// set up routes
@@ -50,6 +59,7 @@ func (s Server) Run() int {
 	mux.HandleFunc("GET /items/{id}", h.GetAnItem)
 	mux.HandleFunc("POST /items", h.AddItem)
 	mux.HandleFunc("GET /images/{filename}", h.GetImage)
+	mux.HandleFunc("GET /search", h.SearchItems)
 
 	// start the server
 	slog.Info("http server started on", "port", s.Port)
@@ -143,6 +153,33 @@ func (s *Handlers) GetAnItem(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+}
+
+// 5-2
+// SearchItems is a handler to search items by keyword (GET /search?keyword=...).
+func (s *Handlers) SearchItems(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// クエリパラメータから `keyword` を取得
+	keyword := r.URL.Query().Get("keyword")
+	if keyword == "" {
+		http.Error(w, "keyword is required", http.StatusBadRequest)
+		return
+	}
+
+	// 商品を検索
+	items, err := s.itemRepo.Search(ctx, keyword)
+	if err != nil {
+		slog.Error("failed to search items: ", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// JSON でレスポンスを返す
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(items); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
