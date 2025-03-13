@@ -17,7 +17,7 @@ var errItemNotFound = errors.New("item not found")
 type Item struct {
 	ID        int    `db:"id" json:"-"`
 	Name      string `db:"name" json:"name"`
-	Category  string `db:"category" json:"category"`
+	Category  string `db:"category_name" json:"category"`
 	ImageName string `db:"image_name" json:"image"`
 }
 
@@ -49,10 +49,31 @@ func NewItemRepository(db *sql.DB) ItemRepository {
 func (i *itemRepository) Insert(ctx context.Context, item *Item) error {
 	// STEP 4-2: add an implementation to store an item
 	// STEP 5-1: sqlite3に保存するように変更
-	query := `INSERT INTO items (name, category, image_name) 
+	// STEP 5-3: Categoryを別テーブルに保存
+	var categoryID int
+
+	err := i.db.QueryRowContext(ctx, "SELECT id FROM categories WHERE name = ?", item.Category).Scan(&categoryID) //.Scanで挿入してる
+	if err != nil {
+		if err == sql.ErrNoRows { // カテゴリーが存在しない場合のみ挿入
+			res, insertErr := i.db.ExecContext(ctx, "INSERT INTO categories (name) VALUES (?)", item.Category)
+			if insertErr != nil {
+				return fmt.Errorf("failed to insert category: %v", insertErr)
+			}
+			id, lastErr := res.LastInsertId()
+			if lastErr != nil {
+				return fmt.Errorf("failed to get last insert ID: %v", lastErr)
+			}
+			categoryID = int(id) // 新しく挿入した ID を categoryID にセット
+		} else {
+			return fmt.Errorf("failed to query category: %v", err) // DB 接続エラーなどはそのまま返す
+		}
+	}
+
+	query := `INSERT INTO items (name, category_id, image_name) 
               VALUES (?, ?, ?)`
 	
-	_, err := i.db.ExecContext(ctx, query, item.Name, item.Category, item.ImageName)
+	
+	_, err = i.db.ExecContext(ctx, query, item.Name, categoryID, item.ImageName)
     if err != nil {
         return fmt.Errorf("failed to insert item: %v", err)
     }
@@ -63,7 +84,8 @@ func (i *itemRepository) Insert(ctx context.Context, item *Item) error {
 // List get all items from db
 func (i *itemRepository) List(ctx context.Context) ([]*Item, error) {
 	// SQL クエリで items テーブルのデータを取得
-    rows, err := i.db.QueryContext(ctx, "SELECT id, name, category, image_name FROM items")
+    rows, err := i.db.QueryContext(ctx,
+		 "SELECT items.id, items.name, categories.name AS category_name, items.image_name FROM items JOIN categories ON items.category_id = categories.id")
     if err != nil {
         return nil, fmt.Errorf("failed to query items: %v", err)
     }
@@ -98,7 +120,7 @@ func (i *itemRepository) Select(ctx context.Context, id int) (*Item, error) {
 		return nil, errItemNotFound
 	}
 
-	query := `SELECT id, name, category, image_name FROM items WHERE id = ?`
+	query := `SELECT items.id, items.name, categories.name AS category_id, items.image_name FROM items WHERE id = ?`
 	row := i.db.QueryRowContext(ctx, query, id)
 
 	var item Item
@@ -116,8 +138,10 @@ func (i *itemRepository) Select(ctx context.Context, id int) (*Item, error) {
 // Search 
 func (i *itemRepository) Search(ctx context.Context, keyword string) ([]*Item, error) {
 	
-	query := `SELECT id, name, category, image_name FROM items 
-              WHERE name LIKE ? OR category LIKE ?`
+	query := `SELECT items.id, items.name, categories.name AS category_name, items.image_name 
+          FROM items
+          JOIN categories ON items.category_id = categories.id
+          WHERE items.name LIKE ? OR categories.name LIKE ?`
 
 	// 部分一致検索
 	searchTerm := "%" + keyword + "%"
